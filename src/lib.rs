@@ -92,7 +92,7 @@ unsafe fn xim_encoding_to_utf8(
 ) -> String {
     let mut buf: Vec<u8> = vec![];
     if xcb_xim_get_encoding(im) == _xcb_xim_encoding_t_XCB_XIM_UTF8_STRING {
-        buf.extend(std::slice::from_raw_parts(
+        buf.extend(from_raw_parts(
             xim_str as *const u8,
             length as usize,
         ));
@@ -100,7 +100,7 @@ unsafe fn xim_encoding_to_utf8(
         let mut new_length = 0usize;
         let utf8 = xcb_compound_text_to_utf8(xim_str, length as usize, &mut new_length);
         if !utf8.is_null() {
-            buf.extend(std::slice::from_raw_parts(utf8 as _, new_length));
+            buf.extend(from_raw_parts(utf8 as _, new_length));
             free(utf8 as _);
         }
     }
@@ -327,11 +327,24 @@ impl<'a> PreeditInfo<'a> {
     /// Refer to [`InputFeedback`] for more details.
     pub fn feedback_array(&self) -> &[u32] {
         unsafe {
-            std::slice::from_raw_parts(
+            from_raw_parts(
                 self.inner.feedback_array.items,
                 self.inner.feedback_array.size as usize,
             )
         }
+    }
+}
+
+/// Wrapper around std::slice::from_raw_parts that allows for ptr to be
+/// null. In the null ptr case, an empty slice is returned.
+/// This is necessary because it is common for C programs to encode
+/// empty arrays in that way, and rust 1.78 will panic if a null
+/// ptr is passed in.
+unsafe fn from_raw_parts<'a, T>(ptr: *const T, size: usize) -> &'a [T] {
+    if ptr.is_null() {
+        &[]
+    } else {
+        std::slice::from_raw_parts(ptr, size)
     }
 }
 
