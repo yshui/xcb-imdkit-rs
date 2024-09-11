@@ -370,6 +370,7 @@ pub struct ImeClient {
     conn: Option<Arc<xcb::Connection>>,
     im: *mut xcb_xim_t,
     ic: Option<xcb_xic_t>,
+    xim_opened: bool,
     callbacks: Callbacks,
     input_style: InputStyle,
     pos_cur: ImePos,
@@ -438,6 +439,7 @@ impl ImeClient {
             conn: None,
             im,
             ic: None,
+            xim_opened: false,
             callbacks: Callbacks::default(),
             input_style,
             pos_cur: ImePos { win: 0, x: 0, y: 0 },
@@ -466,8 +468,12 @@ impl ImeClient {
         if self.ic.is_some() {
             return;
         }
+        if self.xim_opened {
+            unsafe { xcb_xim_close(self.im) };
+        }
         let data: *mut ImeClient = self as _;
         unsafe { xcb_xim_open(self.im, Some(open_callback), true, data as _) };
+        self.xim_opened = true;
     }
 
     /// Let the IME client process XCB's events.
